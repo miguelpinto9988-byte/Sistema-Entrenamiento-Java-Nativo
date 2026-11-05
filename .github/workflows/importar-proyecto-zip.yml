@@ -99,5 +99,5 @@ jobs:
             echo "No hay cambios pendientes."
           else
             git commit -m "import: proyecto Android Java nativo desde ZIP publicado"
-            git push origin "HEAD:${GITHUB_REF_NAME:-main}"
+            git push origin HEAD:main
           fi
