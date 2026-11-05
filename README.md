@@ -1,31 +1,35 @@
-# Sistema de Entrenamiento — Android Java Nativo
+# Sistema de Entrenamiento — Android Java nativo
 
-Este repositorio aloja el proceso de migración a Android nativo (Java).
+Proyecto de migración **parcial** a Android nativo con Java. El código fuente y los recursos multimedia se entregaron en un archivo ZIP dentro del chat. La compilación y el funcionamiento no han sido verificados.
 
-> **Estado:** migración inicial y parcial; todavía no hay una compilación APK verificada ni equivalencia funcional completa con la aplicación original.
+## Estado del repositorio
 
-## Cómo importar el proyecto completo sin subir miles de archivos
+**Pendiente de importación:** aún no se han añadido `app/`, `gradle/` ni los archivos de configuración del proyecto.
 
-1. Descarga `Sistema_Entrenamiento_Java_Nativo_Proyecto.zip` desde el archivo facilitado en la conversación.
-2. Abre [Crear nueva publicación de GitHub](https://github.com/miguelpinto9988-byte/Sistema-Entrenamiento-Java-Nativo/releases/new).
-3. En **Choose a tag**, crea `v0.1.0-java` desde `main`.
-4. Pon como título `Proyecto Android Java nativo — primera migración`.
-5. Adjunta **el ZIP completo**, sin descomprimirlo. Debe conservar el nombre exacto `Sistema_Entrenamiento_Java_Nativo_Proyecto.zip`.
-6. Pulsa **Publish release**.
+La conexión de GitHub utilizada para preparar este repositorio permite crear archivos de texto y flujos de trabajo, pero **no puede transferir directamente el ZIP de unos 153 MB adjunto en ChatGPT**.
 
-La publicación dispara automáticamente [GitHub Actions](https://github.com/miguelpinto9988-byte/Sistema-Entrenamiento-Java-Nativo/actions). El flujo descarga el ZIP, lo descomprime, añade los archivos a `main` e intenta generar una APK de depuración. El flujo necesita permiso de escritura de GitHub Actions al repositorio; si falla al hacer push, revisa **Settings → Actions → General → Workflow permissions**.
+## Importar el archivo completo de una sola vez
 
-Si la compilación termina correctamente, la APK aparecerá en **Actions → ejecución → Artifacts → apk-java-nativo-debug**.
+1. Descargar en ChatGPT el archivo **Sistema_Entrenamiento_Java_Nativo_Proyecto.zip**.
+2. Abrir [Crear publicación](https://github.com/miguelpinto9988-byte/Sistema-Entrenamiento-Java-Nativo/releases/new).
+3. Crear la etiqueta `v0.1.0-java` (dirigida a la rama `main`).
+4. **Adjuntar** el ZIP a la publicación **antes** de pulsar `Publish release`. Mantener el nombre original del ZIP.
+5. Publicar. El flujo [Importar proyecto completo desde ZIP](.github/workflows/importar-proyecto-zip.yml) descargará el adjunto, validará la estructura y tratará de publicar los ~3.557 archivos en `main`.
 
-## Estructura esperada
+Si la importación no termina, revisar [Actions](../../actions) y los mensajes de error. Algunas cuentas necesitan permitir a GitHub Actions escribir en el repositorio en *Settings → Actions → General → Workflow permissions*.
 
-- `app/`: código Java, catálogo y recursos multimedia.
-- `settings.gradle`, `build.gradle`, `gradle.properties`: configuración Android.
-- `gradle/wrapper/`: propiedades de Gradle.
-- `ESTADO_DE_MIGRACION.md`: funciones completadas y pendientes.
+## Compilación automática
 
-## Alcance y seguridad
+Después de que el código esté publicado, el flujo [Compilar APK Android (Java)](.github/workflows/android-apk.yml) intentará compilar con JDK 17, Android SDK 35, Gradle 8.9 y Android Gradle Plugin 8.7.3.
 
-El proyecto fuente contiene fichas de 2.000 ejercicios, recursos multimedia locales y una interfaz nativa inicial. Los 800 ejercicios adicionales no están habilitados para planificación automática. Aún falta migrar funciones avanzadas del sistema original y probar el proyecto en dispositivos Android.
+Si tiene éxito, la APK de depuración estará en **Actions → ejecución → Artifacts** como `apk-java-nativo-debug`.
 
-No publiques claves privadas, contraseñas ni archivos de firma de producción. La APK debug es solo para pruebas y no actualiza automáticamente la versión Android antigua.
+## Alcance y precauciones
+
+- 2.000 fichas de ejercicios y multimedia local.
+- Perfil, consulta, registros básicos y navegación nativa.
+- No es aún equivalente a la aplicación anterior: faltan módulos y animaciones.
+- Los 800 ejercicios posteriores no están autorizados para planificación automática sin validación.
+- La APK de depuración utiliza un identificador diferente y no migra datos automáticamente.
+- No publicar contraseñas, tokens ni claves privadas de firma.
+
