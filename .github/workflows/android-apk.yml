@@ -1,64 +1,109 @@
-name: Compilar APK Android (Java)
+name: Importar proyecto y compilar APK (Java)
 
 on:
   push:
     branches: [main]
-    paths:
-      - "app/**"
-      - "settings.gradle"
-      - "build.gradle"
-      - "gradle.properties"
-      - "gradle/**"
+    paths: [ "app/**", "settings.gradle", "build.gradle", "gradle.properties", "gradle/**" ]
   pull_request:
-    paths:
-      - "app/**"
-      - "settings.gradle"
-      - "build.gradle"
-      - "gradle.properties"
-      - "gradle/**"
+    paths: [ "app/**", "settings.gradle", "build.gradle", "gradle.properties", "gradle/**" ]
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-debug-apk:
-    name: Compilar APK de prueba
+    name: Importar y compilar APK de prueba
     runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    timeout-minutes: 60
     steps:
-      - name: Descargar repositorio
+      - name: Obtener rama principal
         uses: actions/checkout@v4
+        with:
+          ref: main
 
-      - name: Verificar estructura del proyecto
+      - name: Descargar proyecto de GitHub Releases
+        if: github.event_name == 'release'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/proyecto"
+          gh release download "$RELEASE_TAG" --repo "$REPOSITORY" --pattern 'Sistema_Entrenamiento_Java_Nativo_Proyecto.zip' --dir "$RUNNER_TEMP/proyecto"
+          test -s "$RUNNER_TEMP/proyecto/Sistema_Entrenamiento_Java_Nativo_Proyecto.zip"
+
+      - name: Extraer proyecto Java nativo
+        if: github.event_name == 'release'
         shell: bash
         run: |
-          test -f settings.gradle || { echo "::error::Falta settings.gradle en la raíz"; exit 1; }
-          test -f app/build.gradle || { echo "::error::Falta app/build.gradle. Subir el contenido de la carpeta del proyecto a la raíz."; exit 1; }
+          python3 - <<'PY'
+          import os, shutil, zipfile
+          from pathlib import Path
+          archive=Path(os.environ["RUNNER_TEMP"])/"proyecto"/"Sistema_Entrenamiento_Java_Nativo_Proyecto.zip"
+          root="Sistema_Entrenamiento_Java_Nativo_Proyecto/"
+          with zipfile.ZipFile(archive) as z:
+              for entry in z.infolist():
+                  name=entry.filename
+                  parts=Path(name).parts
+                  if not name.startswith(root) or ".." in parts or name.startswith("/"):
+                      raise SystemExit(f"Entrada ZIP inválida: {name}")
+                  if entry.is_dir():
+                      continue
+                  rel=Path(name[len(root):])
+                  if not rel.parts or rel.parts[0] in {".git",".github"}:
+                      continue
+                  target=Path.cwd()/rel
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  with z.open(entry) as src, target.open("wb") as dst:
+                      shutil.copyfileobj(src, dst)
+          print("Proyecto extraído.")
+          PY
 
-      - name: Instalar Java 17
+      - name: Publicar código y recursos en main
+        if: github.event_name == 'release'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A app/ settings.gradle build.gradle gradle.properties gradle/ README.md ESTADO_DE_MIGRACION.md
+          if ! git diff --cached --quiet; then
+            git commit -m "import: proyecto Java nativo desde Release"
+            git push origin HEAD:main
+          fi
+
+      - name: Comprobar estructura
+        shell: bash
+        run: |
+          test -f settings.gradle || { echo "::error::Falta settings.gradle"; exit 1; }
+          test -f app/build.gradle || { echo "::error::Falta app/build.gradle"; exit 1; }
+          test -f app/src/main/assets/catalog.json || { echo "::error::Falta catalog.json"; exit 1; }
+          test -f app/src/main/java/com/ejemplo/entrenamientonativo/MainActivity.java || { echo "::error::Falta MainActivity.java"; exit 1; }
+
+      - name: Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Preparar Android SDK
+      - name: Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Instalar plataforma Android 35
-        shell: bash
-        run: |
-          sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+      - name: Android 35
+        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Preparar Gradle 8.9
+      - name: Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Compilar APK Android de depuración
+      - name: Compilar APK debug
         run: gradle --no-daemon --stacktrace :app:assembleDebug
 
-      - name: Guardar APK como artefacto
+      - name: Descargar APK desde Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: apk-java-nativo-debug
