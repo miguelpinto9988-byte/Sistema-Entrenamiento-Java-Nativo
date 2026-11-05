@@ -1,28 +1,31 @@
 # Sistema de Entrenamiento — Android Java Nativo
 
-Repositorio para la migración inicial de una aplicación de entrenamiento a **Android nativo con Java**.
+Este repositorio aloja el proceso de migración a Android nativo (Java).
 
-> **Estado:** versión parcial en desarrollo. No está verificado que compile ni que todas las funciones originales estén migradas.
+> **Estado:** migración inicial y parcial; todavía no hay una compilación APK verificada ni equivalencia funcional completa con la aplicación original.
+
+## Cómo importar el proyecto completo sin subir miles de archivos
+
+1. Descarga `Sistema_Entrenamiento_Java_Nativo_Proyecto.zip` desde el archivo facilitado en la conversación.
+2. Abre [Crear nueva publicación de GitHub](https://github.com/miguelpinto9988-byte/Sistema-Entrenamiento-Java-Nativo/releases/new).
+3. En **Choose a tag**, crea `v0.1.0-java` desde `main`.
+4. Pon como título `Proyecto Android Java nativo — primera migración`.
+5. Adjunta **el ZIP completo**, sin descomprimirlo. Debe conservar el nombre exacto `Sistema_Entrenamiento_Java_Nativo_Proyecto.zip`.
+6. Pulsa **Publish release**.
+
+La publicación dispara automáticamente [GitHub Actions](https://github.com/miguelpinto9988-byte/Sistema-Entrenamiento-Java-Nativo/actions). El flujo descarga el ZIP, lo descomprime, añade los archivos a `main` e intenta generar una APK de depuración. El flujo necesita permiso de escritura de GitHub Actions al repositorio; si falla al hacer push, revisa **Settings → Actions → General → Workflow permissions**.
+
+Si la compilación termina correctamente, la APK aparecerá en **Actions → ejecución → Artifacts → apk-java-nativo-debug**.
 
 ## Estructura esperada
 
-Copia a la **raíz** de este repositorio el contenido descomprimido del proyecto fuente:
+- `app/`: código Java, catálogo y recursos multimedia.
+- `settings.gradle`, `build.gradle`, `gradle.properties`: configuración Android.
+- `gradle/wrapper/`: propiedades de Gradle.
+- `ESTADO_DE_MIGRACION.md`: funciones completadas y pendientes.
 
-- `app/` — módulo Android, Java, catálogos y medios locales.
-- `build.gradle`, `settings.gradle`, `gradle.properties` — configuración Gradle.
-- `gradle/wrapper/gradle-wrapper.properties` — versión de Gradle.
-- `ESTADO_DE_MIGRACION.md` — funcionalidades migradas y pendientes.
+## Alcance y seguridad
 
-No incluyas una carpeta externa adicional por encima de `app/`: GitHub Actions busca `app/build.gradle` en la raíz.
+El proyecto fuente contiene fichas de 2.000 ejercicios, recursos multimedia locales y una interfaz nativa inicial. Los 800 ejercicios adicionales no están habilitados para planificación automática. Aún falta migrar funciones avanzadas del sistema original y probar el proyecto en dispositivos Android.
 
-## Compilación automática
-
-El flujo [Compilar APK Android](.github/workflows/android-apk.yml) ejecuta Gradle 8.9 con JDK 17 y SDK 35 cuando se publican cambios de la aplicación. También puede ejecutarse manualmente en **Actions → Compilar APK Android → Run workflow**.
-
-Si la compilación finaliza correctamente, descarga la APK de prueba en **Actions → ejecución → Artifacts → apk-java-nativo-debug**.
-
-**Atención:** la APK de depuración no es un paquete de publicación. No actualiza la antigua aplicación ni preserva automáticamente sus datos; instala un identificador diferente. No compartas claves privadas de firma.
-
-## Migración pendiente
-
-La versión fuente inicial contiene un catálogo de 2.000 fichas, recursos locales, pantallas nativas y registros básicos. Todavía faltan partes importantes de la interfaz avanzada y los motores antiguos. Los 800 ejercicios adicionales permanecen excluidos de la planificación automática hasta validación independiente.
+No publiques claves privadas, contraseñas ni archivos de firma de producción. La APK debug es solo para pruebas y no actualiza automáticamente la versión Android antigua.
