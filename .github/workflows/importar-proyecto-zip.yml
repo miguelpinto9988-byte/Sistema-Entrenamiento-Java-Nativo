@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Etiqueta de la publicación que contiene el ZIP (por ejemplo v0.1.0-java)"
+        description: "Etiqueta de la publicación que contiene el ZIP o las 10 partes"
         required: true
         type: string
 
@@ -21,83 +21,92 @@ concurrency:
 jobs:
   importar:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
         with:
+          ref: main
           persist-credentials: true
 
-      - name: Obtener proyecto ZIP adjunto a la publicación
+      - name: Descargar ZIP de GitHub Releases
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
         shell: bash
         run: |
           mkdir -p "$RUNNER_TEMP/zip"
-          gh release download "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --pattern "Sistema_Entrenamiento_Java_Nativo_Proyecto.zip" \
-            --dir "$RUNNER_TEMP/zip"
-          test -s "$RUNNER_TEMP/zip/Sistema_Entrenamiento_Java_Nativo_Proyecto.zip"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "Proyecto_Java_Parte_*_de_10.zip" --dir "$RUNNER_TEMP/zip" || true
+          if ! compgen -G "$RUNNER_TEMP/zip/Proyecto_Java_Parte_*_de_10.zip" > /dev/null; then
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "Sistema_Entrenamiento_Java_Nativo_Proyecto.zip" --dir "$RUNNER_TEMP/zip"
+          fi
 
-      - name: Extraer y comprobar estructura sin rutas peligrosas
+      - name: Validar y extraer archivos
         shell: bash
         run: |
           python3 - <<'PY'
-          import os, pathlib, zipfile
-          arc=pathlib.Path(os.environ['RUNNER_TEMP'])/'zip'/'Sistema_Entrenamiento_Java_Nativo_Proyecto.zip'
-          dest=pathlib.Path(os.environ['RUNNER_TEMP'])/'extraido'
-          dest.mkdir(parents=True,exist_ok=True)
-          with zipfile.ZipFile(arc) as z:
-              for e in z.infolist():
-                  p=(dest/e.filename).resolve()
-                  if not p.is_relative_to(dest.resolve()):
-                      raise SystemExit('Ruta ZIP insegura: '+e.filename)
-                  # No se aceptan enlaces simbólicos embebidos
-                  if (e.external_attr >> 16) & 0o170000 == 0o120000:
-                      raise SystemExit('Enlace simbólico no permitido: '+e.filename)
-              z.extractall(dest)
-          roots=list(dest.rglob('settings.gradle'))
-          roots=[p.parent for p in roots if (p.parent/'app'/'build.gradle').exists()]
-          if len(roots)!=1:
-              raise SystemExit(f'Estructura inesperada: {len(roots)} raíces de proyecto')
-          src=roots[0]
-          dst=pathlib.Path(os.environ['GITHUB_WORKSPACE'])
-          for name in ('app','gradle','build.gradle','settings.gradle','gradle.properties','ESTADO_DE_MIGRACION.md'):
-              old=src/name
-              if not old.exists():
-                  raise SystemExit('Falta archivo o carpeta: '+name)
-              target=dst/name
-              if old.is_dir():
-                  import shutil
-                  shutil.copytree(old,target,dirs_exist_ok=True)
-              else:
-                  import shutil
-                  shutil.copy2(old,target)
-          print('Importación local completada.')
+          import os, pathlib, zipfile, shutil
+          d=pathlib.Path(os.environ['RUNNER_TEMP'])/'zip'
+          parts=sorted(d.glob('Proyecto_Java_Parte_*_de_10.zip'))
+          if parts:
+              expected=[d/f'Proyecto_Java_Parte_{i:02d}_de_10.zip' for i in range(1,11)]
+              if parts!=expected:
+                  raise SystemExit('Deben adjuntarse las 10 partes exactas del proyecto')
+              archives=parts
+          else:
+              archives=[d/'Sistema_Entrenamiento_Java_Nativo_Proyecto.zip']
+          if not all(p.is_file() for p in archives):
+              raise SystemExit('Falta uno o más ZIP')
+          workspace=pathlib.Path(os.environ['GITHUB_WORKSPACE']).resolve()
+          seen=set()
+          root='Sistema_Entrenamiento_Java_Nativo_Proyecto/'
+          count=0
+          for arc in archives:
+              with zipfile.ZipFile(arc) as z:
+                  if z.testzip():
+                      raise SystemExit('ZIP dañado: '+str(arc))
+                  for member in z.infolist():
+                      if member.is_dir():
+                          continue
+                      name=member.filename
+                      if not name.startswith(root) or '\\' in name:
+                          raise SystemExit('Ruta no reconocida: '+name)
+                      rel=pathlib.PurePosixPath(name[len(root):])
+                      if not rel.parts or any(c in ('.','..') for c in rel.parts):
+                          raise SystemExit('Ruta no válida: '+name)
+                      if rel.parts[0] in ('.git','.github'):
+                          raise SystemExit('Ruta reservada: '+name)
+                      mode=member.external_attr >> 16
+                      if (mode & 0o170000)==0o120000:
+                          raise SystemExit('Enlace simbólico no permitido: '+name)
+                      relstr=str(rel)
+                      if relstr in seen:
+                          raise SystemExit('Entrada duplicada: '+name)
+                      seen.add(relstr)
+                      target=(workspace/relstr).resolve()
+                      if not target.is_relative_to(workspace):
+                          raise SystemExit('Ruta fuera del repositorio: '+name)
+                      target.parent.mkdir(parents=True,exist_ok=True)
+                      with z.open(member) as src, target.open('wb') as dst:
+                          shutil.copyfileobj(src,dst)
+                      count+=1
+          if count!=3557:
+              raise SystemExit(f'Se esperaban 3557 archivos, se obtuvieron {count}')
+          for required in ('settings.gradle','app/build.gradle','app/src/main/AndroidManifest.xml','app/src/main/assets/catalog.json'):
+              if not (workspace/required).is_file():
+                  raise SystemExit('Falta '+required)
+          print(f'Importados {count} archivos desde {len(archives)} ZIP')
           PY
 
-      - name: Verificar componentes esenciales
-        shell: bash
-        run: |
-          test -f app/build.gradle
-          test -f settings.gradle
-          test -f app/src/main/AndroidManifest.xml
-          test -f app/src/main/assets/catalog.json
-          echo "Archivos incorporados:"
-          find app gradle -type f | wc -l
-          du -sh app
-
-      - name: Crear commit y publicar el proyecto
+      - name: Publicar proyecto en rama principal
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app gradle settings.gradle build.gradle gradle.properties ESTADO_DE_MIGRACION.md
           if git diff --cached --quiet; then
-            echo "No hay cambios pendientes."
+            echo "No hay cambios que publicar"
           else
-            git commit -m "import: proyecto Android Java nativo desde ZIP publicado"
+            git commit -m "import: proyecto Android Java nativo desde ZIP"
             git push origin HEAD:main
           fi
