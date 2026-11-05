@@ -10,11 +10,13 @@ La conexión de GitHub utilizada para preparar este repositorio permite crear ar
 
 ## Importar el archivo completo de una sola vez
 
-1. Descargar en ChatGPT el archivo **Sistema_Entrenamiento_Java_Nativo_Proyecto.zip**.
+1. Descargar desde el chat **las diez partes ZIP** del proyecto, de `Proyecto_Java_Parte_01_de_10.zip` a `Proyecto_Java_Parte_10_de_10.zip` (cada parte se abre como archivo ZIP independiente).
 2. Abrir [Crear publicación](https://github.com/miguelpinto9988-byte/Sistema-Entrenamiento-Java-Nativo/releases/new).
 3. Crear la etiqueta `v0.1.0-java` (dirigida a la rama `main`).
-4. **Adjuntar** el ZIP a la publicación **antes** de pulsar `Publish release`. Mantener el nombre original del ZIP.
-5. Publicar. El flujo [Importar proyecto completo desde ZIP](.github/workflows/importar-proyecto-zip.yml) descargará el adjunto, validará la estructura y tratará de publicar los ~3.557 archivos en `main`.
+4. **Adjuntar las diez partes ZIP** a la misma publicación **antes** de pulsar `Publish release`, sin cambiar sus nombres.
+5. Publicar. El flujo [Importar proyecto completo desde ZIP](.github/workflows/importar-proyecto-zip.yml) descargará los diez adjuntos, comprobará los ~3.557 archivos y tratará de publicarlos en `main`.
+
+El importador también acepta el ZIP original si se dispone del archivo único de 153 MB. No es necesario unir manualmente las diez partes.
 
 Si la importación no termina, revisar [Actions](../../actions) y los mensajes de error. Algunas cuentas necesitan permitir a GitHub Actions escribir en el repositorio en *Settings → Actions → General → Workflow permissions*.
 
